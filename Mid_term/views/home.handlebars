@@ -1,35 +1,464 @@
-<h2>Hệ thống Quản lý Sách</h2>
+<!-- ============================================== -->
+<!-- KHU VỰC THÔNG BÁO LỖI / THÀNH CÔNG TỪ SERVER   -->
+<!-- ============================================== -->
+<div id="alertContainer" class="mb-4">
+    {{#if errorMessage}}
+    <div class="alert alert-danger alert-dismissible fade show alert-custom shadow-sm d-flex align-items-start gap-3" role="alert">
+        <div class="text-danger fs-3 lh-1">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading fw-bold mb-1 d-flex align-items-center gap-2">
+                <span>Phát hiện lỗi xử lý!</span>
+                <span class="badge bg-danger text-white fs-7">Lỗi</span>
+            </h5>
+            <div class="text-danger-emphasis">{{errorMessage}}</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {{/if}}
 
-<!-- Form thêm sách gửi request vào luồng GHI -->
-<form action="/api/books" method="POST" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc;">
-    <h3>Thêm Sách Mới</h3>
-    <input type="text" name="maSanPham" placeholder="Mã SP (Bắt đầu bằng 296)" required>
-    <input type="text" name="tenSach" placeholder="Tên sách" required>
-    <input type="number" name="giaGoc" placeholder="Giá gốc" required>
-    <button type="submit">Thêm vào Cloud</button>
-</form>
+    {{#if successMessage}}
+    <div class="alert alert-success alert-dismissible fade show alert-custom shadow-sm d-flex align-items-start gap-3" role="alert">
+        <div class="text-success fs-3 lh-1">
+            <i class="bi bi-check-circle-fill"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading fw-bold mb-1 d-flex align-items-center gap-2">
+                <span>Thao tác thành công!</span>
+                <span class="badge bg-success text-white fs-7">Hoàn tất</span>
+            </h5>
+            <div class="text-success-emphasis">{{successMessage}}</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {{/if}}
 
-<!-- Bảng hiển thị danh sách lấy từ luồng ĐỌC -->
-<h3>Danh sách trên Cơ sở dữ liệu</h3>
-<table>
-    <thead>
-        <tr>
-            <th>Mã SP</th>
-            <th>Tên Sách</th>
-            <th>Giá Gốc</th>
-            <th>Thuế VAT</th>
-            <th>Giá Sau Thuế</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{#each books}}
-        <tr>
-            <td>{{this.maSanPham}}</td>
-            <td>{{this.tenSach}}</td>
-            <td>{{this.giaGoc}}</td>
-            <td>{{this.vat}}</td>
-            <td>{{this.giaSauThue}}</td>
-        </tr>
-        {{/each}}
-    </tbody>
-</table>
+    <!-- Khung thông báo lỗi phía Client (khi validate trước submit) -->
+    <div id="clientAlert" class="alert alert-warning alert-dismissible fade alert-custom shadow-sm d-none align-items-start gap-3" role="alert">
+        <div class="text-warning-emphasis fs-3 lh-1">
+            <i class="bi bi-shield-exclamation"></i>
+        </div>
+        <div class="flex-grow-1">
+            <h5 class="alert-heading fw-bold mb-1">Cảnh báo nhập liệu:</h5>
+            <div id="clientAlertMessage" class="text-dark"></div>
+        </div>
+        <button type="button" class="btn-close" onclick="hideClientAlert()" aria-label="Close"></button>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- BANNER GIỚI THIỆU & THỐNG KÊ DASHBOARD        -->
+<!-- ============================================== -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="stat-card d-flex align-items-center justify-content-between">
+            <div>
+                <div class="text-muted small fw-semibold text-uppercase">Tổng số lượng sách</div>
+                <div class="fs-3 fw-bold text-dark mt-1">{{totalBooks}} <span class="fs-6 fw-normal text-muted">cuốn</span></div>
+            </div>
+            <div class="stat-icon bg-primary-subtle text-primary">
+                <i class="bi bi-journal-bookmark-fill"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="stat-card d-flex align-items-center justify-content-between">
+            <div>
+                <div class="text-muted small fw-semibold text-uppercase">Ràng buộc Mã SP</div>
+                <div class="fs-4 fw-bold text-primary mt-1 font-monospace">296...</div>
+            </div>
+            <div class="stat-icon bg-info-subtle text-info">
+                <i class="bi bi-shield-check"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="stat-card d-flex align-items-center justify-content-between">
+            <div>
+                <div class="text-muted small fw-semibold text-uppercase">Thuế suất VAT</div>
+                <div class="fs-3 fw-bold text-warning mt-1">{{vatRate}}%</div>
+            </div>
+            <div class="stat-icon bg-warning-subtle text-warning">
+                <i class="bi bi-receipt"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="stat-card d-flex align-items-center justify-content-between">
+            <div>
+                <div class="text-muted small fw-semibold text-uppercase">Giá trị kho (sau thuế)</div>
+                <div class="fs-5 fw-bold text-success mt-1">{{formatCurrency totalValueAfterTax}}</div>
+            </div>
+            <div class="stat-icon bg-success-subtle text-success">
+                <i class="bi bi-cash-stack"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- ============================================== -->
+    <!-- FORM THÊM SÁCH (GỬI ĐẾN LUỒNG GHI)             -->
+    <!-- ============================================== -->
+    <div class="col-12 col-lg-4">
+        <div class="card card-custom h-100">
+            <div class="card-header card-header-custom d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary p-2 rounded-circle">
+                        <i class="bi bi-plus-lg text-white"></i>
+                    </span>
+                    <h5 class="card-title fw-bold mb-0">Thêm Sách Mới</h5>
+                </div>
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 small">
+                    <i class="bi bi-database-fill-up me-1"></i>Luồng GHI
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <form id="bookForm" action="/api/books" method="POST" novalidate>
+                    <!-- Trường 1: Mã Sản Phẩm -->
+                    <div class="mb-3">
+                        <label for="maSanPham" class="form-label fw-semibold small text-secondary">
+                            Mã Sản Phẩm <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0">
+                                <i class="bi bi-upc-scan"></i>
+                            </span>
+                            <input 
+                                type="text" 
+                                class="form-control border-start-0 font-monospace" 
+                                id="maSanPham" 
+                                name="maSanPham" 
+                                placeholder="VD: 296001, 296A1" 
+                                value="{{formData.maSanPham}}" 
+                                required
+                                autocomplete="off"
+                            >
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between mt-1">
+                            <div id="codeValidationText" class="small text-muted">
+                                <i class="bi bi-info-circle me-1"></i>Bắt buộc bắt đầu bằng: <strong class="text-primary font-monospace">296</strong>
+                            </div>
+                            <span id="codeStatusBadge" class="badge bg-light text-secondary border fs-8">Chưa nhập</span>
+                        </div>
+                    </div>
+
+                    <!-- Trường 2: Tên Sách -->
+                    <div class="mb-3">
+                        <label for="tenSach" class="form-label fw-semibold small text-secondary">
+                            Tên Sách <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0">
+                                <i class="bi bi-book"></i>
+                            </span>
+                            <input 
+                                type="text" 
+                                class="form-control border-start-0" 
+                                id="tenSach" 
+                                name="tenSach" 
+                                placeholder="VD: Lập trình Cloud Node.js" 
+                                value="{{formData.tenSach}}" 
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Trường 3: Giá Gốc -->
+                    <div class="mb-3">
+                        <label for="giaGoc" class="form-label fw-semibold small text-secondary">
+                            Giá Gốc (VNĐ) <span class="text-danger">*</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted border-end-0">
+                                <i class="bi bi-currency-dollar"></i>
+                            </span>
+                            <input 
+                                type="number" 
+                                class="form-control border-start-0" 
+                                id="giaGoc" 
+                                name="giaGoc" 
+                                placeholder="VD: 100000" 
+                                min="1000" 
+                                step="1000" 
+                                value="{{formData.giaGoc}}" 
+                                required
+                            >
+                            <span class="input-group-text bg-light text-muted">đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Hộp tính toán trực tiếp giá sau thuế (Real-time Preview) -->
+                    <div class="p-3 mb-4 rounded-3 bg-light border border-light-subtle">
+                        <div class="d-flex justify-content-between small text-muted mb-1">
+                            <span>Thuế VAT áp dụng (10%):</span>
+                            <span id="previewVat" class="fw-semibold text-warning">+ 0 đ</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold small text-dark">Giá sau thuế (dự kiến):</span>
+                            <span id="previewTotal" class="fw-bold text-success fs-6">0 đ</span>
+                        </div>
+                    </div>
+
+                    <!-- Các nút hành động -->
+                    <div class="d-grid gap-2">
+                        <button type="submit" id="btnSubmit" class="btn btn-gradient-primary btn-lg shadow-sm">
+                            <i class="bi bi-cloud-arrow-up-fill me-2"></i>Thêm Vào Cloud Database
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="resetForm()">
+                            <i class="bi bi-arrow-counterclockwise me-1"></i>Làm mới form
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- BẢNG DANH SÁCH SÁCH (LẤY TỪ LUỒNG ĐỌC)        -->
+    <!-- ============================================== -->
+    <div class="col-12 col-lg-8">
+        <div class="card card-custom h-100">
+            <div class="card-header card-header-custom d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-success p-2 rounded-circle">
+                        <i class="bi bi-database-check text-white"></i>
+                    </span>
+                    <div>
+                        <h5 class="card-title fw-bold mb-0">Danh Sách Sách Trên Cloud</h5>
+                        <small class="text-muted">Cơ sở dữ liệu: MongoDB Atlas (Tài khoản ĐỌC)</small>
+                    </div>
+                </div>
+                
+                <!-- Thanh tìm kiếm nhanh trên client -->
+                <div class="input-group" style="max-width: 260px;">
+                    <span class="input-group-text bg-light border-end-0 py-1">
+                        <i class="bi bi-search text-muted small"></i>
+                    </span>
+                    <input 
+                        type="text" 
+                        id="tableSearch" 
+                        class="form-control form-control-sm border-start-0" 
+                        placeholder="Tìm theo mã hoặc tên..." 
+                        onkeyup="filterBookTable()"
+                    >
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-custom table-hover mb-0" id="booksTable">
+                        <thead>
+                            <tr>
+                                <th style="width: 60px;">STT</th>
+                                <th>Mã SP</th>
+                                <th>Tên Sách</th>
+                                <th class="text-end">Giá Gốc</th>
+                                <th class="text-center">Thuế VAT</th>
+                                <th class="text-end">Giá Sau Thuế</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{#if books.length}}
+                                {{#each books}}
+                                <tr class="book-row">
+                                    <td class="text-muted fw-semibold">{{addOne @index}}</td>
+                                    <td>
+                                        <span class="badge bg-dark-subtle text-dark border border-secondary-subtle font-monospace px-2 py-1">
+                                            {{this.maSanPham}}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-dark">{{this.tenSach}}</div>
+                                    </td>
+                                    <td class="text-end font-monospace text-muted">
+                                        {{formatCurrency this.giaGoc}}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">
+                                            {{this.vat}}
+                                        </span>
+                                    </td>
+                                    <td class="text-end font-monospace fw-bold text-success fs-6">
+                                        {{formatCurrency this.giaSauThue}}
+                                    </td>
+                                </tr>
+                                {{/each}}
+                            {{else}}
+                                <tr>
+                                    <td colspan="6" class="text-center py-5">
+                                        <div class="py-4">
+                                            <div class="text-muted mb-2">
+                                                <i class="bi bi-inbox fs-1"></i>
+                                            </div>
+                                            <h6 class="fw-bold text-secondary mb-1">Chưa có dữ liệu sách nào</h6>
+                                            <p class="text-muted small mb-0">Hãy sử dụng biểu mẫu bên trái để thêm cuốn sách đầu tiên vào hệ thống Cloud!</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {{/if}}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Thông báo khi tìm kiếm không ra kết quả -->
+                <div id="noSearchResult" class="text-center py-4 d-none text-muted">
+                    <i class="bi bi-search me-1"></i> Không tìm thấy sách nào phù hợp với từ khóa tìm kiếm.
+                </div>
+            </div>
+            
+            <div class="card-footer bg-white border-top py-2 px-3 d-flex justify-content-between align-items-center small text-muted">
+                <span><i class="bi bi-database me-1"></i> Bộ sưu tập: <strong>Books</strong></span>
+                <span id="displayedCount">Hiển thị {{totalBooks}} / {{totalBooks}} cuốn sách</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- JAVASCRIPT XỬ LÝ GIAO DIỆN & VALIDATION LỖI    -->
+<!-- ============================================== -->
+<script>
+    const codeInput = document.getElementById("maSanPham");
+    const codeStatusBadge = document.getElementById("codeStatusBadge");
+    const codeValidationText = document.getElementById("codeValidationText");
+    const priceInput = document.getElementById("giaGoc");
+    const previewVat = document.getElementById("previewVat");
+    const previewTotal = document.getElementById("previewTotal");
+    const bookForm = document.getElementById("bookForm");
+    const clientAlert = document.getElementById("clientAlert");
+    const clientAlertMessage = document.getElementById("clientAlertMessage");
+
+    // 1. Kiểm tra mã sản phẩm theo thời gian thực (Real-time Validation)
+    function validateCodeInput() {
+        const value = (codeInput.value || "").trim();
+        if (!value) {
+            codeStatusBadge.className = "badge bg-light text-secondary border fs-8";
+            codeStatusBadge.textContent = "Chưa nhập";
+            codeInput.classList.remove("is-valid", "is-invalid");
+            return;
+        }
+
+        if (value.startsWith("296")) {
+            codeStatusBadge.className = "badge bg-success-subtle text-success border border-success-subtle fs-8";
+            codeStatusBadge.innerHTML = '<i class="bi bi-check2"></i> Hợp lệ (296)';
+            codeInput.classList.remove("is-invalid");
+            codeInput.classList.add("is-valid");
+        } else {
+            codeStatusBadge.className = "badge bg-danger-subtle text-danger border border-danger-subtle fs-8";
+            codeStatusBadge.innerHTML = '<i class="bi bi-x"></i> Phải bắt đầu bằng 296';
+            codeInput.classList.remove("is-valid");
+            codeInput.classList.add("is-invalid");
+        }
+    }
+
+    // 2. Tính thuế VAT và tổng giá sau thuế theo thời gian thực
+    function updatePricePreview() {
+        const rawPrice = Number(priceInput.value);
+        if (!rawPrice || rawPrice <= 0 || isNaN(rawPrice)) {
+            previewVat.textContent = "+ 0 đ";
+            previewTotal.textContent = "0 đ";
+            return;
+        }
+
+        const vatAmount = Math.round((rawPrice * 10) / 100);
+        const totalAmount = Math.round(rawPrice + vatAmount);
+
+        previewVat.textContent = "+ " + vatAmount.toLocaleString("vi-VN") + " đ";
+        previewTotal.textContent = totalAmount.toLocaleString("vi-VN") + " đ";
+    }
+
+    // 3. Hiển thị thông báo cảnh báo client
+    function showClientAlert(message) {
+        clientAlertMessage.textContent = message;
+        clientAlert.classList.remove("d-none");
+        clientAlert.classList.add("show", "d-flex");
+        // Cuộn mượt đến thông báo
+        document.getElementById("alertContainer").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function hideClientAlert() {
+        clientAlert.classList.add("d-none");
+        clientAlert.classList.remove("show", "d-flex");
+    }
+
+    // 4. Bắt lỗi khi người dùng submit form
+    bookForm.addEventListener("submit", function (e) {
+        hideClientAlert();
+        const code = (codeInput.value || "").trim();
+        const name = (document.getElementById("tenSach").value || "").trim();
+        const price = Number(priceInput.value);
+
+        if (!code || !name || !priceInput.value) {
+            e.preventDefault();
+            showClientAlert("Vui lòng điền đầy đủ tất cả các trường: Mã sản phẩm, Tên sách và Giá gốc!");
+            return;
+        }
+
+        if (!code.startsWith("296")) {
+            e.preventDefault();
+            showClientAlert("Từ chối: Mã sản phẩm bắt buộc phải bắt đầu bằng '296' (Ví dụ: 296001, 296ABC) theo MSSV 23IT296.");
+            codeInput.focus();
+            codeInput.classList.add("is-invalid");
+            return;
+        }
+
+        if (isNaN(price) || price <= 0) {
+            e.preventDefault();
+            showClientAlert("Giá gốc không hợp lệ! Vui lòng nhập số tiền dương lớn hơn 0 VNĐ.");
+            priceInput.focus();
+            priceInput.classList.add("is-invalid");
+            return;
+        }
+    });
+
+    // 5. Tìm kiếm nhanh trong bảng sách
+    function filterBookTable() {
+        const keyword = (document.getElementById("tableSearch").value || "").toLowerCase().trim();
+        const rows = document.querySelectorAll("#booksTable tbody tr.book-row");
+        const noResult = document.getElementById("noSearchResult");
+        const countDisplay = document.getElementById("displayedCount");
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            if (text.includes(keyword)) {
+                row.style.display = "";
+                visibleCount++;
+            } else {
+                row.style.display = "none";
+            }
+        });
+
+        if (rows.length > 0) {
+            if (visibleCount === 0) {
+                noResult.classList.remove("d-none");
+            } else {
+                noResult.classList.add("d-none");
+            }
+            countDisplay.textContent = `Hiển thị ${visibleCount} / ${rows.length} cuốn sách`;
+        }
+    }
+
+    // 6. Reset form
+    function resetForm() {
+        bookForm.reset();
+        codeInput.classList.remove("is-valid", "is-invalid");
+        priceInput.classList.remove("is-valid", "is-invalid");
+        document.getElementById("tenSach").classList.remove("is-valid", "is-invalid");
+        validateCodeInput();
+        updatePricePreview();
+        hideClientAlert();
+    }
+
+    // Lắng nghe sự kiện người dùng nhập liệu
+    codeInput.addEventListener("input", validateCodeInput);
+    priceInput.addEventListener("input", updatePricePreview);
+
+    // Kích hoạt tính toán ban đầu nếu có dữ liệu cũ được điền lại
+    window.addEventListener("DOMContentLoaded", () => {
+        if (codeInput.value) validateCodeInput();
+        if (priceInput.value) updatePricePreview();
+    });
+</script>

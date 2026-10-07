@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>{{pageTitle}}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; background: #f9fafb; color: #111827; }
+    .container { max-width: 800px; margin: 30px auto; padding: 0 20px; }
+    .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 600; }
+    .badge-dev { background: #dbeafe; color: #1e40af; }
+    .badge-test { background: #fef3c7; color: #92400e; }
+  </style>
+</head>
+<body>
+  {{!-- Nhúng Navbar từ Partials --}}
+  {{> navbar}}
+
+  <div class="container">
+    <div class="card">
+      <h1>{{headline}}</h1>
+      <p>Hệ thống tự động hiển thị danh sách các thành viên dự án và vai trò tương ứng.</p>
+    </div>
+
+    <h2>Danh sách thành viên dự án</h2>
+    {{#each teamMembers}}
+      <div class="card" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h3 style="margin: 0 0 5px 0;">{{this.name}}</h3>
+          <span style="color: #4b5563;">Vai trò: <strong>{{this.role}}</strong></span>
+        </div>
+        <div>
+          {{#if this.active}}
+            <span class="badge badge-dev">Đang hoạt động</span>
+          {{else}}
+            <span class="badge badge-test">Tạm vắng</span>
+          {{/if}}
+        </div>
+      </div>
+    {{/each}}
+  </div>
+
+  {{!-- Nhúng Footer từ Partials --}}
+  {{> footer}}
+</body>
+</html>

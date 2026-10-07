@@ -1,0 +1,35 @@
+<h2>Hệ thống Quản lý Sách</h2>
+
+<!-- Form thêm sách gửi request vào luồng GHI -->
+<form action="/api/books" method="POST" style="margin-bottom: 20px; padding: 15px; border: 1px solid #ccc;">
+    <h3>Thêm Sách Mới</h3>
+    <input type="text" name="maSanPham" placeholder="Mã SP (Bắt đầu bằng 296)" required>
+    <input type="text" name="tenSach" placeholder="Tên sách" required>
+    <input type="number" name="giaGoc" placeholder="Giá gốc" required>
+    <button type="submit">Thêm vào Cloud</button>
+</form>
+
+<!-- Bảng hiển thị danh sách lấy từ luồng ĐỌC -->
+<h3>Danh sách trên Cơ sở dữ liệu</h3>
+<table>
+    <thead>
+        <tr>
+            <th>Mã SP</th>
+            <th>Tên Sách</th>
+            <th>Giá Gốc</th>
+            <th>Thuế VAT</th>
+            <th>Giá Sau Thuế</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{#each books}}
+        <tr>
+            <td>{{this.maSanPham}}</td>
+            <td>{{this.tenSach}}</td>
+            <td>{{this.giaGoc}}</td>
+            <td>{{this.vat}}</td>
+            <td>{{this.giaSauThue}}</td>
+        </tr>
+        {{/each}}
+    </tbody>
+</table>

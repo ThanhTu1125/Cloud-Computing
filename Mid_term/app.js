@@ -10,7 +10,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Cấu hình Handlebars với các helper tiện ích
 app.engine(
   "handlebars",
   engine({
@@ -23,12 +22,11 @@ app.engine(
       eq: (a, b) => a === b,
       gt: (a, b) => a > b,
     },
-  })
+  }),
 );
 app.set("view engine", "handlebars");
 app.set("views", "./views");
 
-// Khởi tạo kho lưu trữ Session trên MongoDB Atlas
 const store = new MongoDBStore({
   uri: process.env.DB_URI_WRITE,
   collection: "sessions",
@@ -45,14 +43,11 @@ app.use(
   }),
 );
 
-// Route trang chủ (Luồng ĐỌC)
 app.get("/", async (req, res) => {
-  // Lấy các thông báo lỗi / thành công và dữ liệu form từ session
   const errorMessage = req.session.errorMessage || null;
   const successMessage = req.session.successMessage || null;
   const formData = req.session.formData || {};
 
-  // Xóa flash message khỏi session sau khi lấy ra
   delete req.session.errorMessage;
   delete req.session.successMessage;
   delete req.session.formData;
@@ -65,15 +60,18 @@ app.get("/", async (req, res) => {
     books = await BookRead.find({}).lean();
   } catch (error) {
     console.error("Lỗi khi đọc dữ liệu từ Cloud (tài khoản ĐỌC):", error);
-    dbError = "Không thể kết nối hoặc đọc dữ liệu từ Cloud (Tài khoản ĐỌC): " + (error.message || "Lỗi máy chủ");
+    dbError =
+      "Không thể kết nối hoặc đọc dữ liệu từ Cloud (Tài khoản ĐỌC): " +
+      (error.message || "Lỗi máy chủ");
   }
 
-  // Thống kê nhanh hiển thị trên Dashboard
   const totalBooks = books.length;
   const totalValue = books.reduce((sum, b) => sum + (Number(b.giaGoc) || 0), 0);
-  const totalValueAfterTax = books.reduce((sum, b) => sum + (Number(b.giaSauThue) || 0), 0);
+  const totalValueAfterTax = books.reduce(
+    (sum, b) => sum + (Number(b.giaSauThue) || 0),
+    0,
+  );
 
-  // Đảm bảo session được cập nhật rồi render view
   req.session.save((saveErr) => {
     if (saveErr) console.error("Lỗi lưu session:", saveErr);
     res.render("home", {
@@ -89,17 +87,17 @@ app.get("/", async (req, res) => {
   });
 });
 
-// Route thêm sách (Luồng GHI)
 app.post("/api/books", async (req, res) => {
   const isApiRequest =
     req.xhr ||
-    (req.headers.accept && req.headers.accept.includes("application/json") && !req.headers.accept.includes("text/html")) ||
+    (req.headers.accept &&
+      req.headers.accept.includes("application/json") &&
+      !req.headers.accept.includes("text/html")) ||
     req.is("json");
 
   const { maSanPham, tenSach, giaGoc } = req.body;
   const inputData = { maSanPham, tenSach, giaGoc };
 
-  // Helper phản hồi lỗi (phân biệt request qua API JSON hoặc Form HTML)
   const respondError = (statusCode, message) => {
     if (isApiRequest) {
       return res.status(statusCode).json({ success: false, error: message });
@@ -112,7 +110,6 @@ app.post("/api/books", async (req, res) => {
     });
   };
 
-  // Helper phản hồi thành công
   const respondSuccess = (message, book) => {
     if (isApiRequest) {
       return res.status(201).json({ success: true, message, book });
@@ -130,28 +127,35 @@ app.post("/api/books", async (req, res) => {
     const cleanTenSach = String(tenSach || "").trim();
     const cleanGiaGoc = Number(giaGoc);
 
-    // 1. Kiểm tra để trống các trường dữ liệu
     if (!cleanMaSP || !cleanTenSach || giaGoc === undefined || giaGoc === "") {
-      return respondError(400, "Vui lòng nhập đầy đủ tất cả các trường: Mã sản phẩm, Tên sách và Giá gốc.");
+      return respondError(
+        400,
+        "Vui lòng nhập đầy đủ tất cả các trường: Mã sản phẩm, Tên sách và Giá gốc.",
+      );
     }
 
-    // 2. Kiểm tra quy định Mã SP bắt buộc bắt đầu bằng 296
     if (!cleanMaSP.startsWith("296")) {
-      return respondError(403, "Từ chối thêm sách: Mã sản phẩm bắt buộc phải bắt đầu bằng 296 (Quy định MSSV 23IT296).");
+      return respondError(
+        403,
+        "Từ chối thêm sách: Mã sản phẩm bắt buộc phải bắt đầu bằng 296 (Quy định MSSV 23IT296).",
+      );
     }
 
-    // 3. Kiểm tra tính hợp lệ của giá gốc
     if (isNaN(cleanGiaGoc) || cleanGiaGoc <= 0) {
-      return respondError(400, "Giá gốc không hợp lệ: Giá phải là số dương lớn hơn 0 VNĐ.");
+      return respondError(
+        400,
+        "Giá gốc không hợp lệ: Giá phải là số dương lớn hơn 0 VNĐ.",
+      );
     }
 
-    // 4. Kiểm tra trùng lặp mã sản phẩm trong CSDL
     const existingBook = await BookRead.findOne({ maSanPham: cleanMaSP });
     if (existingBook) {
-      return respondError(409, `Mã sản phẩm "${cleanMaSP}" đã tồn tại trong hệ thống (Sách: "${existingBook.tenSach}"). Vui lòng chọn mã khác.`);
+      return respondError(
+        409,
+        `Mã sản phẩm "${cleanMaSP}" đã tồn tại trong hệ thống (Sách: "${existingBook.tenSach}"). Vui lòng chọn mã khác.`,
+      );
     }
 
-    // 5. Tính toán thuế VAT 10%
     const vatRate = 10;
     const giaSauThue = Math.round(cleanGiaGoc + (cleanGiaGoc * vatRate) / 100);
 
@@ -164,10 +168,16 @@ app.post("/api/books", async (req, res) => {
     });
 
     await newBook.save();
-    return respondSuccess(`Thêm sách "${cleanTenSach}" (Mã SP: ${cleanMaSP}) thành công vào Cloud Database!`, newBook);
+    return respondSuccess(
+      `Thêm sách "${cleanTenSach}" (Mã SP: ${cleanMaSP}) thành công vào Cloud Database!`,
+      newBook,
+    );
   } catch (error) {
     console.error("Lỗi khi ghi dữ liệu:", error);
-    return respondError(500, `Lỗi khi lưu dữ liệu lên Cloud Database (Tài khoản GHI): ${error.message || "Lỗi hệ thống"}`);
+    return respondError(
+      500,
+      `Lỗi khi lưu dữ liệu lên Cloud Database (Tài khoản GHI): ${error.message || "Lỗi hệ thống"}`,
+    );
   }
 });
 
@@ -180,7 +190,9 @@ app.use((req, res) => {
 app.use((err, req, res, next) => {
   console.error("Lỗi chưa được xử lý:", err);
   res.status(500).render("home", {
-    errorMessage: "Lỗi máy chủ nội bộ: " + (err.message || "Đã xảy ra lỗi không mong muốn."),
+    errorMessage:
+      "Lỗi máy chủ nội bộ: " +
+      (err.message || "Đã xảy ra lỗi không mong muốn."),
     books: [],
   });
 });
